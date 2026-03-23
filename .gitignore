@@ -1,0 +1,59 @@
+# ======================
+# Node / Frontend
+# ======================
+node_modules/
+dist/
+build/
+.vite/
+
+# ======================
+# Python / Backend
+# ======================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+env/
+
+# ======================
+# ML Models & Outputs
+# ======================
+*.pt
+*.pth
+*.h5
+*.ckpt
+outputs/
+reports/
+results/
+
+# ======================
+# Datasets (VERY IMPORTANT)
+# ======================
+*.zip
+*.jsonl
+data/
+emopillars_training/
+
+# ======================
+# Generated Files
+# ======================
+*.csv
+*.pdf
+*.json
+
+# ======================
+# OS / IDE
+# ======================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ======================
+# Logs / Temp
+# ======================
+*.log
+uploads/
+temp/

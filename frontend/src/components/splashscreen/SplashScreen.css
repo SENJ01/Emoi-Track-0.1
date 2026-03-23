@@ -1,0 +1,75 @@
+.splash-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #0f172a; /* Deep Navy Blue */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  transition: opacity 0.5s ease-in-out;
+}
+
+.splash-overlay.exit {
+  opacity: 0;
+}
+
+.splash-content {
+  text-align: center;
+  animation: fadeIn 1s ease-out;
+}
+
+.splash-logo {
+  font-size: 80px;
+  margin-bottom: 10px;
+  filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.5));
+}
+
+.brand-name {
+  color: white;
+  font-size: 3rem;
+  font-weight: 900;
+  margin: 0;
+  letter-spacing: -2px;
+}
+
+.brand-name span {
+  color: #3b82f6; /* Accent Blue */
+}
+
+.tagline {
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-top: 5px;
+}
+
+.loader-track {
+  width: 200px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  margin: 30px auto 0;
+  overflow: hidden;
+}
+
+.loader-fill {
+  width: 100%;
+  height: 100%;
+  background: #3b82f6;
+  animation: grow 2.5s ease-in-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes grow {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}

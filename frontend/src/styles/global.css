@@ -1,0 +1,104 @@
+/* 1. Foundation: Force the browser to use 100% of the screen */
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background-color: #f8fafc;
+  color: #1e293b;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 2. Wrapper: Spans the full viewport */
+.app-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100vw;
+}
+
+/* 3. Navigation: Stretches across the top */
+.navbar {
+  width: 100%;
+  background: white;
+  padding: 1rem 5%; /* Flexible padding */
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+/* 4. Main Content: The "Sponge" that centers the card */
+.main-content {
+  flex: 1; /* This pushes the footer down and header up */
+  display: flex;
+  align-items: center;    /* Vertical center */
+  justify-content: center; /* Horizontal center */
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 5. The Card: Professional Academic Look */
+.upload-card {
+  background: white;
+  width: 90%;
+  max-width: 550px;
+  padding: 3.5rem;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
+  text-align: center;
+  border: 1px solid #e2e8f0;
+}
+
+/* 6. Components */
+.upload-icon {
+  width: 64px;
+  height: 64px;
+  color: #3b82f6;
+  margin: 0 auto 1.5rem;
+  display: block;
+}
+
+.dropzone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 3rem 1rem;
+  margin-bottom: 2rem;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.dropzone:hover {
+  border-color: #3b82f6;
+  background-color: #f0f7ff;
+}
+
+.primary-btn {
+  width: 100%;
+  padding: 1rem;
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+/* 7. Footer: Locked to the bottom */
+.footer {
+  width: 100%;
+  padding: 1.5rem;
+  background: white;
+  border-top: 1px solid #e2e8f0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}

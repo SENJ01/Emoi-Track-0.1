@@ -1,0 +1,54 @@
+:root {
+font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
+
+  /* Research Palette */
+  --primary-blue: #2563eb;
+  --bg-light: #f8fafc;
+  --text-dark: #1e293b;
+  
+  color-scheme: light; /* Force light mode for a clean academic look */
+  color: var(--text-dark);
+  background-color: var(--bg-light);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  display: block; /* Fixes the squishing/centering mess */
+  background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+h1 {
+  font-size: 2.5em; /* Slightly smaller for better dashboard scaling */
+  line-height: 1.1;
+  font-weight: 600;
+  color: #305ece;
+}
+
+/* Base button styling - we will use .primary-btn in App.css for the blue ones */
+button {
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 600;
+  font-family: inherit;
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #475569;
+}
+
+button:hover {
+  border-color: var(--primary-blue);
+  background-color: #f1f5f9;
+}

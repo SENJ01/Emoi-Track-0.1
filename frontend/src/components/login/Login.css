@@ -1,0 +1,194 @@
+.landing-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f8fafc;
+}
+
+/* --- LEFT SIDE: INFO SECTION --- */
+.landing-info {
+  flex: 1.2;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: white;
+  padding: 60px 80px; /* Adjusted padding for more content */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.badge {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  width: fit-content;
+  margin-bottom: 20px;
+}
+
+.landing-title {
+  font-size: 3.2rem;
+  line-height: 1.1;
+  margin: 0 0 15px 0;
+  color: #ffffff;
+  letter-spacing: -1.5px;
+}
+
+.landing-title span {
+  color: #3b82f6;
+}
+
+.main-description {
+  font-size: 1.1rem;
+  color: #94a3b8;
+  max-width: 550px;
+  line-height: 1.6;
+  margin-bottom: 40px;
+}
+
+/* NEW: Project Pillars Styling */
+.project-pillars {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  margin-bottom: 45px;
+}
+
+.pillar-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.pillar-num {
+  font-size: 10px;
+  font-weight: 900;
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.pillar h4 {
+  color: #f8fafc;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pillar p {
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 500px;
+}
+
+/* NEW: Technical Footer */
+.tech-stack-footer {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding-top: 30px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tech-stack-footer .dot {
+  color: #334155;
+}
+
+/* --- RIGHT SIDE: AUTH SECTION --- */
+.auth-section {
+  flex: 0.8;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+.login-card {
+  background: white;
+  padding: 45px;
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 420px;
+}
+
+.login-header h2 { 
+  margin: 0 0 8px 0; 
+  color: #0f172a; 
+  font-size: 26px; 
+  font-weight: 800;
+}
+
+.login-header p { 
+  color: #64748b; 
+  font-size: 14px; 
+  margin-bottom: 30px; 
+}
+
+.input-group { 
+  margin-bottom: 22px; 
+}
+
+.input-group label { 
+  display: block; 
+  font-size: 13px; 
+  font-weight: 700; 
+  color: #475569; 
+  margin-bottom: 10px; 
+}
+
+.input-group input {
+  width: 100%;
+  padding: 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 15px;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.login-btn {
+  width: 100%;
+  padding: 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 10px;
+}
+
+.login-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.login-footer {
+  margin-top: 35px;
+  text-align: center;
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
