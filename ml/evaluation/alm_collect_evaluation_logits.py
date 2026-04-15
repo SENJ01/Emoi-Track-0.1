@@ -15,7 +15,8 @@ parser.add_argument("--author", type=str, required=True)
 args = parser.parse_args()
 
 BASE_DATA = r"D:\FYP\Emoi-Track\data"
-MODEL_PATH = r"D:\FYP\Emoi-Track\outputs\roberta-base-goemotions-negative\checkpoint-3000"
+# MODEL_PATH = r"D:\FYP\Emoi-Track\outputs\roberta-base-goemotions-negative\checkpoint-3000"
+MODEL_PATH = r"D:\FYP\Emoi-Track\ml\outputs\roberta-base-goemotions-negative-final\checkpoint-1500"
 
 AUTHOR_DIR = os.path.join(BASE_DATA, args.author)
 EVAL_LIST_PATH = os.path.join(AUTHOR_DIR, "evaluation_file_list.txt")
@@ -117,8 +118,8 @@ for story_file in tqdm(story_files):
 all_logits = np.array(all_logits)
 all_labels = np.array(all_labels)
 
-np.save(os.path.join(AUTHOR_DIR, "evaluation_logits.npy"), all_logits)
-np.save(os.path.join(AUTHOR_DIR, "evaluation_labels.npy"), all_labels)
+np.save(os.path.join(AUTHOR_DIR, "evaluation_logits_1500.npy"), all_logits)
+np.save(os.path.join(AUTHOR_DIR, "evaluation_labels_1500.npy"), all_labels)
 
 print("Saved calibration logits.")
 print("Logits shape:", all_logits.shape)

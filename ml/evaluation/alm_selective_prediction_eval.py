@@ -2,15 +2,16 @@ import os
 import numpy as np
 import torch
 import torch.nn.functional as F
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, confusion_matrix, classification_report
 
 # ===============================
 # CONFIG
 # ===============================
 
-BASE_DIR = "data"                # data/<Author>/
-BEST_T = 2.50                    
-TAU_VALUES = [0.0, 0.88, 0.90]   # Report these 3
+BASE_DIR = "data"
+BEST_T = 2.50
+TAU_VALUES = [0.0, 0.76]  # for 1500; change to [0.0, 0.88] for 3000
+# TAU_VALUES = [0.0, 0.88]
 UNKNOWN_CLASS = 3
 
 # ===============================
@@ -27,8 +28,8 @@ def load_all_evaluation_logits():
         if not os.path.isdir(author_path):
             continue
 
-        logits_path = os.path.join(author_path, "evaluation_logits.npy")
-        labels_path = os.path.join(author_path, "evaluation_labels.npy")
+        logits_path = os.path.join(author_path, f"evaluation_logits_1500.npy")
+        labels_path = os.path.join(author_path, f"evaluation_labels_1500.npy")
 
         if os.path.exists(logits_path) and os.path.exists(labels_path):
             print(f"Merging evaluation data from: {author}")
@@ -40,7 +41,7 @@ def load_all_evaluation_logits():
             all_labels.append(labels)
 
     if len(all_logits) == 0:
-        raise ValueError("No evaluation files found.")
+        raise ValueError(f"No evaluation files found for checkpoint.")
 
     all_logits = np.vstack(all_logits)
     all_labels = np.concatenate(all_labels)
@@ -75,43 +76,59 @@ def apply_threshold(probs, tau):
     return np.array(preds)
 
 # ===============================
+# REPORT METRICS
+# ===============================
+
+def report_metrics(labels, preds, tau):
+    accept_mask = preds != UNKNOWN_CLASS
+    coverage = np.sum(accept_mask) / len(labels)
+    macro_f1 = f1_score(labels, preds, average="macro")
+    micro_f1 = f1_score(labels, preds, average="micro")
+
+    print("-------------------------------------------------------------")
+    print(f"Checkpoint: 1500")
+    print(f"Tau: {tau:.2f}")
+    print(f"Coverage: {coverage:.3f}")
+    print(f"Macro-F1: {macro_f1:.4f}")
+    print(f"Micro-F1: {micro_f1:.4f}")
+
+    print("\nPer-Class Coverage:")
+    for cls in np.unique(labels):
+        class_mask = labels == cls
+        class_total = np.sum(class_mask)
+        class_accepted = np.sum(accept_mask & class_mask)
+        if class_total > 0:
+            print(f"Class {cls}: {class_accepted / class_total:.2%}")
+
+    unknown_true = np.sum(labels == UNKNOWN_CLASS)
+    unknown_pred = np.sum(preds == UNKNOWN_CLASS)
+    unknown_correct = np.sum((labels == UNKNOWN_CLASS) & (preds == UNKNOWN_CLASS))
+
+    print("\nUNKNOWN Behavior:")
+    print(f"True UNKNOWN samples: {unknown_true}")
+    print(f"Predicted UNKNOWN samples: {unknown_pred}")
+    if unknown_true > 0:
+        print(f"UNKNOWN Recall / Acceptance: {unknown_correct / unknown_true:.2%}")
+
+    print("\nConfusion Matrix:")
+    print(confusion_matrix(labels, preds))
+
+    print("\nClassification Report:")
+    print(classification_report(labels, preds, digits=4))
+
+# ===============================
 # MAIN
 # ===============================
 
 def main():
-
     logits, labels = load_all_evaluation_logits()
     probs = apply_temperature(logits, BEST_T)
 
     print(f"\nSelective Prediction Evaluation (T={BEST_T})\n")
 
-    print("-------------------------------------------------------------")
-    print("Tau\tCoverage\tMacro-F1\tMicro-F1")
-    print("-------------------------------------------------------------")
-
     for tau in TAU_VALUES:
-
         preds = apply_threshold(probs, tau)
-
-        accept_mask = preds != UNKNOWN_CLASS
-        coverage = np.sum(accept_mask) / len(labels)
-
-        if tau == 0.0:
-            # No rejection baseline
-            macro_f1 = f1_score(labels, preds, average="macro")
-            micro_f1 = f1_score(labels, preds, average="micro")
-        else:
-            # Remove rejected samples before computing F1
-            filtered_preds = preds[accept_mask]
-            filtered_labels = labels[accept_mask]
-
-            macro_f1 = f1_score(filtered_labels, filtered_preds, average="macro")
-            micro_f1 = f1_score(filtered_labels, filtered_preds, average="micro")
-
-        print(f"{tau:.2f}\t{coverage:.3f}\t\t{macro_f1:.4f}\t\t{micro_f1:.4f}")
-
-    print("-------------------------------------------------------------")
-
+        report_metrics(labels, preds, tau)
 
 if __name__ == "__main__":
     main()

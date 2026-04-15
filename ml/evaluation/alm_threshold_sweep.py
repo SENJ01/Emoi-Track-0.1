@@ -28,8 +28,8 @@ def load_all_calibration_logits():
         if not os.path.isdir(author_path):
             continue
 
-        logits_path = os.path.join(author_path, "calibration_logits.npy")
-        labels_path = os.path.join(author_path, "calibration_labels.npy")
+        logits_path = os.path.join(author_path, "calibration_logits_1500.npy")
+        labels_path = os.path.join(author_path, "calibration_labels_1500.npy")
 
         if os.path.exists(logits_path) and os.path.exists(labels_path):
             print(f"Merging calibration data from: {author}")

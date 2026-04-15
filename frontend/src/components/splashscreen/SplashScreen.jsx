@@ -10,8 +10,8 @@ const SplashScreen = ({ onFinished }) => {
       setIsFadingOut(true); // Start the fade-out animation
       
       // 2. Wait for the 0.5s CSS transition to finish before switching pages
-      setTimeout(onFinished, 500); 
-    }, 2500);
+      setTimeout(onFinished, 300); 
+    }, 800);
 
     return () => clearTimeout(timer);
   }, [onFinished]);

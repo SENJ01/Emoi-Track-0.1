@@ -4,7 +4,7 @@ font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
   color: #0f172a;
 
   /* Research Palette */
-  --primary-blue: #2563eb;
+  --primary-blue: #18223e;
   --bg-light: #f8fafc;
   --text-dark: #1e293b;
   
@@ -31,7 +31,7 @@ h1 {
   font-size: 2.5em; /* Slightly smaller for better dashboard scaling */
   line-height: 1.1;
   font-weight: 600;
-  color: #305ece;
+  color: #18223e;
 }
 
 /* Base button styling - we will use .primary-btn in App.css for the blue ones */

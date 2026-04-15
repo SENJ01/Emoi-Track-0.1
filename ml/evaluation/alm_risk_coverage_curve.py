@@ -38,8 +38,8 @@ def load_all_evaluation_logits():
         if not os.path.isdir(author_path):
             continue
 
-        logits_path = os.path.join(author_path, "evaluation_logits.npy")
-        labels_path = os.path.join(author_path, "evaluation_labels.npy")
+        logits_path = os.path.join(author_path, "evaluation_logits_1500.npy")
+        labels_path = os.path.join(author_path, "evaluation_labels_1500.npy")
 
         if os.path.exists(logits_path) and os.path.exists(labels_path):
             print(f"Merging evaluation data from: {author}")

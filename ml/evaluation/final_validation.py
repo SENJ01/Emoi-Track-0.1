@@ -258,6 +258,20 @@ def evaluate_narrative(input_file_path, emmood_dir, threshold):
     )
     prob_report, f1_prob, _ = evaluate_shift("PROBABILITY", gt_shifts, prob_shift)
 
+    nefi_vals = before_df["NEFI"].values[:min_len]
+    top5_idx = np.argsort(-nefi_vals)[:5]
+
+    shift_top5_nefi = np.zeros(min_len, dtype=int)
+    shift_top5_nefi[top5_idx] = 1
+
+    # Main metric for strong rupture detection
+    matches_top5 = int(sum(gt_shifts[i] == 1 for i in top5_idx))
+    precision_at_5 = matches_top5 / 5
+
+    # Optional secondary metric
+    top5_report, f1_top5, cm_top5 = evaluate_shift(
+        "TOP5_NEFI", gt_shifts, shift_top5_nefi
+    )
     # SAVE FULL RESEARCH JSON
 
     full_report = {
@@ -295,6 +309,14 @@ def evaluate_narrative(input_file_path, emmood_dir, threshold):
                 "report": nefi_report,
                 "f1": f1_nefi,
                 "confusion_matrix": cm_nefi.tolist(),
+            },
+            "top5_nefi_shift": {
+                "report": top5_report,
+                "f1": f1_top5,
+                "precision_at_5": precision_at_5,
+                "matches_top5": matches_top5,
+                "top5_indices": top5_idx.tolist(),
+                "confusion_matrix": cm_top5.tolist(),
             },
         },
         "phase3": {"probability_shift": {"report": prob_report, "f1": f1_prob}},

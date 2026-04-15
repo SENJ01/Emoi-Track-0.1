@@ -12,10 +12,13 @@ from attrdict import AttrDict
 
 # transformers imports
 from transformers import (
-    BertConfig, BertTokenizer,
-    DistilBertConfig, DistilBertTokenizer,
-    RobertaConfig, RobertaTokenizer,
-    get_linear_schedule_with_warmup
+    BertConfig,
+    BertTokenizer,
+    DistilBertConfig,
+    DistilBertTokenizer,
+    RobertaConfig,
+    RobertaTokenizer,
+    get_linear_schedule_with_warmup,
 )
 
 # Optimizer
@@ -25,51 +28,73 @@ from torch.optim import AdamW
 from model import (
     BertForMultiLabelClassification,
     DistilBertForMultiLabelClassification,
-    RobertaForMultiLabelClassification
+    RobertaForMultiLabelClassification,
 )
 
-from utils import (
-    init_logger,
-    set_seed,
-    compute_metrics
-)
-from data_loader import (
-    load_and_cache_examples,
-    GoEmotionsProcessor
-)
+from utils import init_logger, set_seed, compute_metrics
+from data_loader import load_and_cache_examples, GoEmotionsProcessor
 
 logger = logging.getLogger(__name__)
+
 
 # ------------------ TRAIN FUNCTION ------------------ #
 def train(args, model, tokenizer, train_dataset, dev_dataset=None, test_dataset=None):
     train_sampler = RandomSampler(train_dataset)
-    train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
+    train_dataloader = DataLoader(
+        train_dataset, sampler=train_sampler, batch_size=args.train_batch_size
+    )
 
     if args.max_steps > 0:
         t_total = args.max_steps
-        args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
+        args.num_train_epochs = (
+            args.max_steps
+            // (len(train_dataloader) // args.gradient_accumulation_steps)
+            + 1
+        )
     else:
-        t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
+        t_total = (
+            len(train_dataloader)
+            // args.gradient_accumulation_steps
+            * args.num_train_epochs
+        )
 
-    no_decay = ['bias', 'LayerNorm.weight']
+    no_decay = ["bias", "LayerNorm.weight"]
     optimizer_grouped_parameters = [
-        {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-         'weight_decay': args.weight_decay},
-        {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
-         'weight_decay': 0.0}
+        {
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if not any(nd in n for nd in no_decay)
+            ],
+            "weight_decay": args.weight_decay,
+        },
+        {
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if any(nd in n for nd in no_decay)
+            ],
+            "weight_decay": 0.0,
+        },
     ]
-    optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+    optimizer = AdamW(
+        optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon
+    )
     scheduler = get_linear_schedule_with_warmup(
         optimizer,
         num_warmup_steps=int(t_total * args.warmup_proportion),
-        num_training_steps=t_total
+        num_training_steps=t_total,
     )
 
-    if os.path.isfile(os.path.join(args.model_name_or_path, "optimizer.pt")) and os.path.isfile(
-            os.path.join(args.model_name_or_path, "scheduler.pt")
-    ):
-        optimizer.load_state_dict(torch.load(os.path.join(args.model_name_or_path, "optimizer.pt")))
-        scheduler.load_state_dict(torch.load(os.path.join(args.model_name_or_path, "scheduler.pt")))
+    if os.path.isfile(
+        os.path.join(args.model_name_or_path, "optimizer.pt")
+    ) and os.path.isfile(os.path.join(args.model_name_or_path, "scheduler.pt")):
+        optimizer.load_state_dict(
+            torch.load(os.path.join(args.model_name_or_path, "optimizer.pt"))
+        )
+        scheduler.load_state_dict(
+            torch.load(os.path.join(args.model_name_or_path, "scheduler.pt"))
+        )
 
     logger.info("***** Running training *****")
     logger.info("  Num examples = %d", len(train_dataset))
@@ -93,7 +118,7 @@ def train(args, model, tokenizer, train_dataset, dev_dataset=None, test_dataset=
             inputs = {
                 "input_ids": batch[0],
                 "attention_mask": batch[1],
-                "labels": batch[3]
+                "labels": batch[3],
             }
             if args.model_type.lower() == "bert":
                 inputs["token_type_ids"] = batch[2]
@@ -108,8 +133,8 @@ def train(args, model, tokenizer, train_dataset, dev_dataset=None, test_dataset=
             tr_loss += loss.item()
 
             if (step + 1) % args.gradient_accumulation_steps == 0 or (
-                    len(train_dataloader) <= args.gradient_accumulation_steps
-                    and (step + 1) == len(train_dataloader)
+                len(train_dataloader) <= args.gradient_accumulation_steps
+                and (step + 1) == len(train_dataloader)
             ):
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
                 optimizer.step()
@@ -124,7 +149,9 @@ def train(args, model, tokenizer, train_dataset, dev_dataset=None, test_dataset=
                         evaluate(args, model, dev_dataset, "dev", global_step)
 
                 if args.save_steps > 0 and global_step % args.save_steps == 0:
-                    ckpt_dir = os.path.join(args.output_dir, f"checkpoint-{global_step}")
+                    ckpt_dir = os.path.join(
+                        args.output_dir, f"checkpoint-{global_step}"
+                    )
                     os.makedirs(ckpt_dir, exist_ok=True)
                     model_to_save = model.module if hasattr(model, "module") else model
                     model_to_save.save_pretrained(ckpt_dir)
@@ -132,8 +159,14 @@ def train(args, model, tokenizer, train_dataset, dev_dataset=None, test_dataset=
                     torch.save(args, os.path.join(ckpt_dir, "training_args.bin"))
 
                     if args.save_optimizer:
-                        torch.save(optimizer.state_dict(), os.path.join(ckpt_dir, "optimizer.pt"))
-                        torch.save(scheduler.state_dict(), os.path.join(ckpt_dir, "scheduler.pt"))
+                        torch.save(
+                            optimizer.state_dict(),
+                            os.path.join(ckpt_dir, "optimizer.pt"),
+                        )
+                        torch.save(
+                            scheduler.state_dict(),
+                            os.path.join(ckpt_dir, "scheduler.pt"),
+                        )
 
             if args.max_steps > 0 and global_step > args.max_steps:
                 break
@@ -142,13 +175,18 @@ def train(args, model, tokenizer, train_dataset, dev_dataset=None, test_dataset=
 
     return global_step, tr_loss / global_step
 
+
 # ------------------ EVALUATION FUNCTION ------------------ #
 def evaluate(args, model, eval_dataset, mode, global_step=None):
     results = {}
     eval_sampler = SequentialSampler(eval_dataset)
-    eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
+    eval_dataloader = DataLoader(
+        eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size
+    )
 
-    logger.info(f"***** Running evaluation on {mode} dataset {'(' + str(global_step) + ' step)' if global_step else ''} *****")
+    logger.info(
+        f"***** Running evaluation on {mode} dataset {'(' + str(global_step) + ' step)' if global_step else ''} *****"
+    )
     logger.info(f"  Num examples = {len(eval_dataset)}")
     logger.info(f"  Eval Batch size = {args.eval_batch_size}")
 
@@ -165,7 +203,7 @@ def evaluate(args, model, eval_dataset, mode, global_step=None):
             inputs = {
                 "input_ids": batch[0],
                 "attention_mask": batch[1],
-                "labels": batch[3]
+                "labels": batch[3],
             }
             if args.model_type.lower() == "bert":
                 inputs["token_type_ids"] = batch[2]
@@ -179,8 +217,12 @@ def evaluate(args, model, eval_dataset, mode, global_step=None):
             preds = 1 / (1 + np.exp(-logits.detach().cpu().numpy()))
             out_label_ids = inputs["labels"].detach().cpu().numpy()
         else:
-            preds = np.append(preds, 1 / (1 + np.exp(-logits.detach().cpu().numpy())), axis=0)
-            out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
+            preds = np.append(
+                preds, 1 / (1 + np.exp(-logits.detach().cpu().numpy())), axis=0
+            )
+            out_label_ids = np.append(
+                out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0
+            )
 
     eval_loss = eval_loss / nb_eval_steps
     results = {"loss": eval_loss}
@@ -191,7 +233,9 @@ def evaluate(args, model, eval_dataset, mode, global_step=None):
     # Save per-mode evaluation results
     mode_dir = os.path.join(args.output_dir, mode)
     os.makedirs(mode_dir, exist_ok=True)
-    output_eval_file = os.path.join(mode_dir, f"{mode}-{global_step}.txt" if global_step else f"{mode}.txt")
+    output_eval_file = os.path.join(
+        mode_dir, f"{mode}-{global_step}.txt" if global_step else f"{mode}.txt"
+    )
 
     with open(output_eval_file, "w") as f_w:
         logger.info(f"***** Eval results on {mode} dataset *****")
@@ -200,6 +244,7 @@ def evaluate(args, model, eval_dataset, mode, global_step=None):
             f_w.write(f"{key} = {results[key]}\n")
 
     return results
+
 
 # ------------------ MAIN FUNCTION ------------------ #
 def main(cli_args):
@@ -219,14 +264,14 @@ def main(cli_args):
     processor = GoEmotionsProcessor(args)
     label_list = processor.get_labels()
 
-    # ------------------ CONFIG & TOKENIZER ------------------ #
+    # Select the transformer backbone based on the configured model type
     if args.model_type.lower() == "bert":
         config = BertConfig.from_pretrained(
             args.model_name_or_path,
             num_labels=len(label_list),
             finetuning_task=args.task,
             id2label={str(i): l for i, l in enumerate(label_list)},
-            label2id={l: i for i, l in enumerate(label_list)}
+            label2id={l: i for i, l in enumerate(label_list)},
         )
         tokenizer = BertTokenizer.from_pretrained(args.tokenizer_name_or_path)
         model_class = BertForMultiLabelClassification
@@ -235,7 +280,7 @@ def main(cli_args):
             args.model_name_or_path,
             num_labels=len(label_list),
             id2label={str(i): l for i, l in enumerate(label_list)},
-            label2id={l: i for i, l in enumerate(label_list)}
+            label2id={l: i for i, l in enumerate(label_list)},
         )
         tokenizer = DistilBertTokenizer.from_pretrained(args.tokenizer_name_or_path)
         model_class = DistilBertForMultiLabelClassification
@@ -244,29 +289,43 @@ def main(cli_args):
             args.model_name_or_path,
             num_labels=len(label_list),
             id2label={str(i): l for i, l in enumerate(label_list)},
-            label2id={l: i for i, l in enumerate(label_list)}
+            label2id={l: i for i, l in enumerate(label_list)},
         )
         tokenizer = RobertaTokenizer.from_pretrained(args.tokenizer_name_or_path)
         model_class = RobertaForMultiLabelClassification
     else:
         raise ValueError(f"Unsupported model type: {args.model_type}")
 
-    # Load model
+    # Load the selected pretrained model
     model = model_class.from_pretrained(args.model_name_or_path, config=config)
+
+    # Move the model to the active device
     args.device = "cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu"
     model.to(args.device)
 
     # ------------------ DATASET ------------------ #
-    train_dataset = load_and_cache_examples(args, tokenizer, mode="train") if args.train_file else None
-    dev_dataset = load_and_cache_examples(args, tokenizer, mode="dev") if args.dev_file else None
-    test_dataset = load_and_cache_examples(args, tokenizer, mode="test") if args.test_file else None
+    train_dataset = (
+        load_and_cache_examples(args, tokenizer, mode="train")
+        if args.train_file
+        else None
+    )
+    dev_dataset = (
+        load_and_cache_examples(args, tokenizer, mode="dev") if args.dev_file else None
+    )
+    test_dataset = (
+        load_and_cache_examples(args, tokenizer, mode="test")
+        if args.test_file
+        else None
+    )
 
     if dev_dataset is None:
         args.evaluate_test_during_training = True
 
     # ------------------ TRAINING ------------------ #
     if args.do_train and train_dataset:
-        global_step, tr_loss = train(args, model, tokenizer, train_dataset, dev_dataset, test_dataset)
+        global_step, tr_loss = train(
+            args, model, tokenizer, train_dataset, dev_dataset, test_dataset
+        )
         logger.info(f" global_step = {global_step}, average loss = {tr_loss}")
 
     # ------------------ EVALUATION ------------------ #
@@ -274,8 +333,12 @@ def main(cli_args):
     if args.do_eval and test_dataset:
         # Find checkpoints safely
         checkpoints = list(
-            os.path.dirname(c) for c in sorted(
-                glob.glob(os.path.join(args.output_dir, "**", "pytorch_model.bin"), recursive=True)
+            os.path.dirname(c)
+            for c in sorted(
+                glob.glob(
+                    os.path.join(args.output_dir, "**", "pytorch_model.bin"),
+                    recursive=True,
+                )
             )
         )
         if not getattr(args, "eval_all_checkpoints", False):
@@ -287,8 +350,13 @@ def main(cli_args):
             global_step = checkpoint.split("-")[-1] if "-" in checkpoint else None
             model = model_class.from_pretrained(checkpoint)
             model.to(args.device)
-            result = evaluate(args, model, test_dataset, mode="test", global_step=global_step)
-            result = {k + (f"_{global_step}" if global_step else ""): v for k, v in result.items()}
+            result = evaluate(
+                args, model, test_dataset, mode="test", global_step=global_step
+            )
+            result = {
+                k + (f"_{global_step}" if global_step else ""): v
+                for k, v in result.items()
+            }
             results.update(result)
 
         # Save combined eval results
@@ -299,8 +367,9 @@ def main(cli_args):
                 f_w.write(f"{key} = {results[key]}\n")
         logger.info(f"Evaluation results saved to {output_eval_file}")
 
+
 # ------------------ CLI ------------------ #
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--taxonomy", type=str, required=True, help="Config name without .json"

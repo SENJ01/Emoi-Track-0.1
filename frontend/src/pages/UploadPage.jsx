@@ -46,13 +46,20 @@ export default function UploadPage(props) {
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target.result;
-      const count = text.split(/[.!?]+\s/).filter(s => s.trim().length > 0).length;
+      const count = text
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .length;
+
       setSentenceCount(count);
 
       if (count < 50) {
-        setFileError(`⚠️ Narrative too short: ${count} sentences. Min 50 required.`);
+        setFileError(`⚠️ Narrative too short: ${count} sentences. Minimum 50 required.`);
       } else if (count > 200) {
-        setFileError(`⚠️ Narrative too long: ${count} sentences. Max 200 allowed.`);
+        setFileError(`⚠️ Narrative too long: ${count} sentences. Maximum 200 allowed.`);
+      } else {
+        setFileError("");
       }
     };
     reader.readAsText(selectedFile);

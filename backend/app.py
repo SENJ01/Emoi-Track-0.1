@@ -26,7 +26,12 @@ PREDICTIONS_DIR.mkdir(parents=True, exist_ok=True)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,26 +41,31 @@ app.add_middleware(
 # --- DYNAMIC DATASET ROUTER ---
 def get_emmood_dir(file_path: Path):
     """
-    Automatically routes the ground-truth path based on the story name
-    or its original location.
+    Dynamically detects the correct author dataset based on the story name.
     """
-    path_str = str(file_path).lower()
 
-    # Check for Grimms
-    if "grimms" in path_str or "snowdrop" in path_str:
-        return DATA_DIR / "Grimms" / "emmood"
+    raw_name = file_path.stem.lower()  # e.g. tom_thumb.sent
+    story_name = raw_name.replace(".sent", "").strip()
 
-    # Check for HCAndersen
-    elif "hcandersen" in path_str or "andersen" in path_str:
-        return DATA_DIR / "HCAndersen" / "emmood"
+    print(f"🔍 Raw uploaded name: {raw_name}")
+    print(f"🔍 Normalized story name: {story_name}")
 
-    # Default to Potter
-    else:
-        # Note: Move your Potter emmood files to: /data/Potter/emmood/
-        return DATA_DIR / "Potter" / "emmood"
+    for author in os.listdir(DATA_DIR):
+        sent_path = DATA_DIR / author / "sent" / f"{story_name}.sent.okpuncs"
+
+        if sent_path.exists():
+            emmood_path = DATA_DIR / author / "emmood"
+            print(f"✅ Detected author: {author} for story: {story_name}")
+            print(f"📂 Using ground truth path: {emmood_path}")
+            return emmood_path
+
+    fallback_path = DATA_DIR / "Potter" / "emmood"
+    print(f"⚠️ Could not detect dataset for '{story_name}', defaulting to Potter")
+    print(f"📂 Using fallback ground truth path: {fallback_path}")
+    return fallback_path
 
 
-# --- ML PIPELINE WORKER ---
+# ML Pipeline worker
 def run_ml_pipeline(input_path: Path):
     start_app_time = time.time()
     try:
@@ -63,7 +73,7 @@ def run_ml_pipeline(input_path: Path):
         env = os.environ.copy()
         env["PYTHONPATH"] = str(BASE_DIR) + os.pathsep + env.get("PYTHONPATH", "")
 
-        # Step 1: Run Inference (EMOi-Track Core)
+        # Step 1: Run narrative inference
         subprocess.run(
             [
                 python_executable,
@@ -79,7 +89,7 @@ def run_ml_pipeline(input_path: Path):
             env=env,
         )
 
-        # Step 2: Evaluation (Synchronized Threshold & Dynamic Path)
+        # Step 2: Run evaluation using the routed ground truth directory
         selected_emmood_dir = get_emmood_dir(input_path)
         print(f"DEBUG: Selected Ground Truth Path: {selected_emmood_dir}")
 
@@ -93,7 +103,7 @@ def run_ml_pipeline(input_path: Path):
                 "--emmood_dir",
                 str(selected_emmood_dir),
                 "--threshold",
-                "0.88",  # Fixed to match your research requirements
+                "0.76",  # Fixed to match your research requirements
             ],
             check=True,
             cwd=BASE_DIR,
@@ -126,7 +136,7 @@ def root():
     return {"status": "Backend running"}
 
 
-# Upload Endpoint
+# Receive uploaded narrative file and save it locally
 @app.post("/analyze/")
 async def analyze(file: UploadFile = File(...)):
     try:
@@ -134,8 +144,8 @@ async def analyze(file: UploadFile = File(...)):
         with open(input_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
+        # Mark system as processing and launch analysis pipeline
         STATUS_FILE.write_text("processing")
-
         thread = threading.Thread(target=run_ml_pipeline, args=(input_path,))
         thread.start()
 

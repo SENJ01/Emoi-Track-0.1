@@ -35,7 +35,7 @@ export default function Login({ setAuth }) {
           <div className="pillar">
             <div className="pillar-header">
               <span className="pillar-num">01</span>
-              <h4>Emotion Detection</h4>
+              <h2>Emotion Detection</h2>
             </div>
             <p>Utilizes <strong>RoBERTa-base</strong> fine-tuned on custom emotion labels for high-granularity sentiment mapping across long-form text.</p>
           </div>
@@ -43,7 +43,7 @@ export default function Login({ setAuth }) {
           <div className="pillar">
             <div className="pillar-header">
               <span className="pillar-num">02</span>
-              <h4>Rupture Analysis</h4>
+              <h2>Rupture Analysis</h2>
             </div>
             <p>Employs the <strong>NEFI (Negative Emotion Fracture Index)</strong> algorithm to identify sudden, significant emotional shifts or 'fractures'.</p>
           </div>
@@ -51,7 +51,7 @@ export default function Login({ setAuth }) {
           <div className="pillar">
             <div className="pillar-header">
               <span className="pillar-num">03</span>
-              <h4>Multi-Scale Logic</h4>
+              <h2>Multi-Scale Logic</h2>
             </div>
             <p>Processes narratives at both <strong>Sentence</strong> and <strong>Segment</strong> levels to ensure temporal accuracy in trajectory plotting.</p>
           </div>
