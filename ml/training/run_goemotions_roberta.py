@@ -39,13 +39,6 @@ from data.data_loader import load_and_cache_examples, GoEmotionsProcessor  # noq
 logger = logging.getLogger(__name__)
 
 
-def get_hf_load_kwargs(path_or_name, revision=None):
-    """Use revision only for remote Hugging Face repos, not local paths."""
-    if revision and not os.path.exists(path_or_name):
-        return {"revision": revision}
-    return {}
-
-
 def build_label_maps(label_list):
     """Create label-index mappings once for model config."""
     id2label = {str(i): label for i, label in enumerate(label_list)}
@@ -56,54 +49,48 @@ def build_label_maps(label_list):
 def load_model_components(args, label_list):
     """Load config, tokenizer, and model based on the selected backbone."""
     id2label, label2id = build_label_maps(label_list)
-
-    model_kwargs = get_hf_load_kwargs(args.model_name_or_path, args.hf_revision)
-    tokenizer_kwargs = get_hf_load_kwargs(
-        args.tokenizer_name_or_path, args.hf_revision
-    )
-
     model_type = args.model_type.lower()
 
     if model_type == "bert":
         config = BertConfig.from_pretrained(
             args.model_name_or_path,
+            revision=args.hf_revision,
             num_labels=len(label_list),
             finetuning_task=args.task,
             id2label=id2label,
             label2id=label2id,
-            **model_kwargs,
         )
         tokenizer = BertTokenizer.from_pretrained(
             args.tokenizer_name_or_path,
-            **tokenizer_kwargs,
+            revision=args.hf_revision,
         )
         model_class = BertForMultiLabelClassification
 
     elif model_type == "distilbert":
         config = DistilBertConfig.from_pretrained(
             args.model_name_or_path,
+            revision=args.hf_revision,
             num_labels=len(label_list),
             id2label=id2label,
             label2id=label2id,
-            **model_kwargs,
         )
         tokenizer = DistilBertTokenizer.from_pretrained(
             args.tokenizer_name_or_path,
-            **tokenizer_kwargs,
+            revision=args.hf_revision,
         )
         model_class = DistilBertForMultiLabelClassification
 
     elif model_type == "roberta":
         config = RobertaConfig.from_pretrained(
             args.model_name_or_path,
+            revision=args.hf_revision,
             num_labels=len(label_list),
             id2label=id2label,
             label2id=label2id,
-            **model_kwargs,
         )
         tokenizer = RobertaTokenizer.from_pretrained(
             args.tokenizer_name_or_path,
-            **tokenizer_kwargs,
+            revision=args.hf_revision,
         )
         model_class = RobertaForMultiLabelClassification
 
@@ -113,8 +100,8 @@ def load_model_components(args, label_list):
     # Load pretrained weights
     model = model_class.from_pretrained(
         args.model_name_or_path,
+        revision=args.hf_revision,
         config=config,
-        **model_kwargs,
     )
     return tokenizer, model, model_class
 
@@ -613,8 +600,10 @@ def main(cli_args):
         for checkpoint in checkpoints:
             step_id = checkpoint.split("-")[-1] if "-" in checkpoint else None
 
-            checkpoint_kwargs = get_hf_load_kwargs(checkpoint, args.hf_revision)
-            model = model_class.from_pretrained(checkpoint, **checkpoint_kwargs)
+            model = model_class.from_pretrained(
+                checkpoint,
+                revision=args.hf_revision,
+            )
             model.to(args.device)
 
             result = evaluate(
