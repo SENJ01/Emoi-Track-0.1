@@ -11,13 +11,12 @@ from tqdm import tqdm
 from transformers import (
     RobertaConfig,
     RobertaTokenizer,
-    get_linear_schedule_with_warmup
+    get_linear_schedule_with_warmup,
 )
 
 from torch.optim import AdamW
 
 from ml.models.model import RobertaForMultiLabelClassification
-
 
 from ml.utils.utils import (
     init_logger,
@@ -32,16 +31,16 @@ from ml.data.data_loader import (
 
 logger = logging.getLogger(__name__)
 
-
 # =====================================================
 # EVALUATION FUNCTION
-# ======================================================
+# =====================================================
 def evaluate(args, model, dataset):
-
     sampler = SequentialSampler(dataset)
-    dataloader = DataLoader(dataset,
-                            sampler=sampler,
-                            batch_size=args.eval_batch_size)
+    dataloader = DataLoader(
+        dataset,
+        sampler=sampler,
+        batch_size=args.eval_batch_size
+    )
 
     model.eval()
 
@@ -58,9 +57,6 @@ def evaluate(args, model, dataset):
                 "attention_mask": batch[1],
                 "labels": batch[3]
             }
-
-            if args.model_type.lower() == "bert":
-                inputs["token_type_ids"] = batch[2]
 
             outputs = model(**inputs)
             loss, logits = outputs[:2]
@@ -79,17 +75,14 @@ def evaluate(args, model, dataset):
     all_labels = np.vstack(all_labels)
 
     hard_preds = (all_probs >= args.threshold).astype(int)
-
     metrics = compute_metrics(all_labels, hard_preds)
 
     return avg_loss, metrics, all_probs, all_labels
 
-
-# ======================================================
+# =====================================================
 # TRAINING FUNCTION
-# ======================================================
+# =====================================================
 def train(args, model, tokenizer, train_dataset, dev_dataset):
-
     train_loader = DataLoader(
         train_dataset,
         sampler=RandomSampler(train_dataset),
@@ -113,18 +106,16 @@ def train(args, model, tokenizer, train_dataset, dev_dataset):
     global_step = 0
     model.zero_grad()
 
-    # Accumulators for train metrics
     running_loss = 0.0
     train_probs_buffer = []
     train_labels_buffer = []
 
     for epoch in range(args.num_train_epochs):
-
         model.train()
 
-        for step, batch in enumerate(tqdm(train_loader,
-                                          desc=f"Epoch {epoch+1}")):
-
+        for step, batch in enumerate(
+            tqdm(train_loader, desc=f"Epoch {epoch + 1}")
+        ):
             batch = tuple(t.to(args.device) for t in batch)
 
             inputs = {
@@ -132,9 +123,6 @@ def train(args, model, tokenizer, train_dataset, dev_dataset):
                 "attention_mask": batch[1],
                 "labels": batch[3]
             }
-
-            if args.model_type.lower() == "bert":
-                inputs["token_type_ids"] = batch[2]
 
             outputs = model(**inputs)
             loss, logits = outputs[:2]
@@ -149,8 +137,10 @@ def train(args, model, tokenizer, train_dataset, dev_dataset):
 
             loss.backward()
 
-            torch.nn.utils.clip_grad_norm_(model.parameters(),
-                                           args.max_grad_norm)
+            torch.nn.utils.clip_grad_norm_(
+                model.parameters(),
+                args.max_grad_norm
+            )
 
             optimizer.step()
             scheduler.step()
@@ -162,25 +152,23 @@ def train(args, model, tokenizer, train_dataset, dev_dataset):
             # SAVE PER CHECKPOINT
             # ==================================================
             if global_step % args.save_steps == 0:
-
-                # ---- TRAIN METRICS ----
                 avg_train_loss = running_loss / args.save_steps
 
                 train_probs = np.vstack(train_probs_buffer)
                 train_labels = np.vstack(train_labels_buffer)
 
                 hard_train_preds = (train_probs >= args.threshold).astype(int)
-                train_metrics = compute_metrics(train_labels,
-                                                hard_train_preds)
+                train_metrics = compute_metrics(
+                    train_labels,
+                    hard_train_preds
+                )
 
                 train_accuracy = train_metrics["accuracy"]
 
-                # Reset buffers
                 running_loss = 0.0
                 train_probs_buffer = []
                 train_labels_buffer = []
 
-                # ---- SAVE MODEL ----
                 checkpoint_dir = os.path.join(
                     args.output_dir,
                     f"checkpoint-{global_step}"
@@ -191,7 +179,6 @@ def train(args, model, tokenizer, train_dataset, dev_dataset):
                 model_to_save.save_pretrained(checkpoint_dir)
                 tokenizer.save_pretrained(checkpoint_dir)
 
-                # ---- DEV EVALUATION ----
                 dev_loss, dev_metrics, _, _ = evaluate(
                     args, model, dev_dataset
                 )
@@ -204,8 +191,7 @@ def train(args, model, tokenizer, train_dataset, dev_dataset):
                     f"dev-{global_step}.txt"
                 )
 
-                with open(dev_file, "w") as f:
-
+                with open(dev_file, "w", encoding="utf-8") as f:
                     f.write("----- TRAIN METRICS -----\n")
                     f.write(f"train_loss = {avg_train_loss}\n")
                     f.write(f"train_accuracy = {train_accuracy}\n\n")
@@ -224,24 +210,25 @@ def train(args, model, tokenizer, train_dataset, dev_dataset):
                     f.write(f"weighted_precision = {dev_metrics['weighted_precision']}\n")
                     f.write(f"weighted_recall = {dev_metrics['weighted_recall']}\n")
 
-                logger.info(f"Checkpoint {global_step} saved.")
+                logger.info("Checkpoint %s saved.", global_step)
 
     return global_step
 
-
-# ======================================================
+# =====================================================
 # MAIN
-# ======================================================
+# =====================================================
 def main(cli_args):
-
     config_path = os.path.join(
         "ml", "config", f"{cli_args.taxonomy}.json"
     )
 
-    with open(config_path) as f:
+    with open(config_path, encoding="utf-8") as f:
         config_dict = json.load(f)
 
     args = type("Args", (), config_dict)
+
+    if not hasattr(args, "hf_revision"):
+        args.hf_revision = "main"
 
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -253,34 +240,20 @@ def main(cli_args):
 
     # ---------------- MODEL ----------------
     if args.model_type.lower() == "roberta":
-
         config = RobertaConfig.from_pretrained(
             args.model_name_or_path,
+            revision=args.hf_revision,
             num_labels=len(label_list)
         )
 
         tokenizer = RobertaTokenizer.from_pretrained(
-            args.tokenizer_name_or_path
+            args.tokenizer_name_or_path,
+            revision=args.hf_revision
         )
 
         model = RobertaForMultiLabelClassification.from_pretrained(
             args.model_name_or_path,
-            config=config
-        )
-
-    elif args.model_type.lower() == "bert":
-
-        config = BertConfig.from_pretrained(
-            args.model_name_or_path,
-            num_labels=len(label_list)
-        )
-
-        tokenizer = BertTokenizer.from_pretrained(
-            args.tokenizer_name_or_path
-        )
-
-        model = BertForMultiLabelClassification.from_pretrained(
-            args.model_name_or_path,
+            revision=args.hf_revision,
             config=config
         )
 
@@ -294,8 +267,8 @@ def main(cli_args):
 
     # ---------------- DATA ----------------
     train_dataset = load_and_cache_examples(args, tokenizer, mode="train")
-    dev_dataset   = load_and_cache_examples(args, tokenizer, mode="dev")
-    test_dataset  = load_and_cache_examples(args, tokenizer, mode="test")
+    dev_dataset = load_and_cache_examples(args, tokenizer, mode="dev")
+    test_dataset = load_and_cache_examples(args, tokenizer, mode="test")
 
     # ---------------- TRAIN ----------------
     train(args, model, tokenizer, train_dataset, dev_dataset)
@@ -313,7 +286,7 @@ def main(cli_args):
     np.save(os.path.join(test_dir, "raw_probs.npy"), raw_probs)
     np.save(os.path.join(test_dir, "labels.npy"), labels)
 
-    with open(os.path.join(test_dir, "test-base.txt"), "w") as f:
+    with open(os.path.join(test_dir, "test-base.txt"), "w", encoding="utf-8") as f:
         f.write(f"accuracy = {test_metrics['accuracy']}\n")
         f.write(f"loss = {test_loss}\n")
         f.write(f"macro_f1 = {test_metrics['macro_f1']}\n")
@@ -328,10 +301,9 @@ def main(cli_args):
 
     logger.info("Test evaluation complete.")
 
-
-# ======================================================
+# =====================================================
 # CLI
-# ======================================================
+# =====================================================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--taxonomy", type=str, required=True)
