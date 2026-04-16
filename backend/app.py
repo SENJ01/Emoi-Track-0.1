@@ -1,6 +1,6 @@
 import os
 import time
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pathlib import Path
@@ -24,6 +24,10 @@ DATA_DIR = BASE_DIR / "data"
 UPLOAD_DIR.mkdir(exist_ok=True)
 PREDICTIONS_DIR.mkdir(parents=True, exist_ok=True)
 
+def write_status(status: str, message: str = ""):
+    with open(STATUS_FILE, "w", encoding="utf-8") as f:
+        json.dump({"status": status, "message": message}, f)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -42,9 +46,9 @@ app.add_middleware(
 def get_emmood_dir(file_path: Path):
     """
     Dynamically detects the correct author dataset based on the story name.
+    Raises an error if no matching dataset is found.
     """
-
-    raw_name = file_path.stem.lower()  # e.g. tom_thumb.sent
+    raw_name = file_path.stem.lower()
     story_name = raw_name.replace(".sent", "").strip()
 
     print(f"🔍 Raw uploaded name: {raw_name}")
@@ -59,15 +63,15 @@ def get_emmood_dir(file_path: Path):
             print(f"📂 Using ground truth path: {emmood_path}")
             return emmood_path
 
-    fallback_path = DATA_DIR / "Potter" / "emmood"
-    print(f"⚠️ Could not detect dataset for '{story_name}', defaulting to Potter")
-    print(f"📂 Using fallback ground truth path: {fallback_path}")
-    return fallback_path
+    raise FileNotFoundError(
+        f"No matching dataset/ground truth directory found for story '{story_name}'."
+    )
 
 
 # ML Pipeline worker
 def run_ml_pipeline(input_path: Path):
     start_app_time = time.time()
+
     try:
         python_executable = sys.executable
         env = os.environ.copy()
@@ -89,7 +93,7 @@ def run_ml_pipeline(input_path: Path):
             env=env,
         )
 
-        # Step 2: Run evaluation using the routed ground truth directory
+        # Step 2: Run evaluation using detected ground truth directory
         selected_emmood_dir = get_emmood_dir(input_path)
         print(f"DEBUG: Selected Ground Truth Path: {selected_emmood_dir}")
 
@@ -103,29 +107,31 @@ def run_ml_pipeline(input_path: Path):
                 "--emmood_dir",
                 str(selected_emmood_dir),
                 "--threshold",
-                "0.76",  # Fixed to match your research requirements
+                "0.76",
             ],
             check=True,
             cwd=BASE_DIR,
             env=env,
         )
 
-        # Step 3: Performance Metadata Injection
+        # Step 3: Inject execution time only after full success
         total_time = round(time.time() - start_app_time, 2)
         latest_path = PREDICTIONS_DIR / "latest_results.json"
 
         if latest_path.exists():
-            with open(latest_path, "r") as f:
+            with open(latest_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
+
             data["execution_time"] = total_time
-            with open(latest_path, "w") as f:
+
+            with open(latest_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=4)
 
-        STATUS_FILE.write_text("done")
+        write_status("done", f"Analysis completed successfully in {total_time}s.")
         print(f"✅ ML pipeline finished successfully in {total_time}s.")
 
-    except Exception:
-        STATUS_FILE.write_text("error")
+    except Exception as e:
+        write_status("error", str(e))
         print("❌ ML pipeline failed:")
         traceback.print_exc()
 
@@ -140,12 +146,27 @@ def root():
 @app.post("/analyze/")
 async def analyze(file: UploadFile = File(...)):
     try:
+        if not file.filename.lower().endswith(".okpuncs"):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid file type. Please upload a .okpuncs file only.",
+            )
+
         input_path = UPLOAD_DIR / file.filename
         with open(input_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Mark system as processing and launch analysis pipeline
-        STATUS_FILE.write_text("processing")
+        # Clear stale latest outputs before starting a new run
+        for path in [
+            PREDICTIONS_DIR / "latest_results.json",
+            PREDICTIONS_DIR / "latest_trajectory.png",
+            PREDICTIONS_DIR / "latest_report.pdf",
+        ]:
+            if path.exists():
+                path.unlink()
+
+        write_status("processing", f"Processing started for {file.filename}")
+
         thread = threading.Thread(target=run_ml_pipeline, args=(input_path,))
         thread.start()
 
@@ -154,52 +175,82 @@ async def analyze(file: UploadFile = File(...)):
             "filename": file.filename,
         }
 
-    except Exception:
+    except HTTPException as e:
+        raise e
+
+    except Exception as e:
         traceback.print_exc()
-        return {"error": "Upload failed. Check backend logs."}
+        write_status("error", f"Upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Upload failed. Check backend logs.")
 
 
 # Status Endpoint
 @app.get("/status/")
 def get_status():
     if not STATUS_FILE.exists():
-        return {"status": "idle"}
-    return {"status": STATUS_FILE.read_text()}
+        return {"status": "idle", "message": ""}
+
+    try:
+        with open(STATUS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"status": "error", "message": "Could not read status file."}
 
 
 @app.get("/results/")
 def get_results():
-    # Path to the latest summary
     latest_path = PREDICTIONS_DIR / "latest_results.json"
 
+    if not STATUS_FILE.exists():
+        raise HTTPException(status_code=404, detail="No results available.")
+
+    try:
+        with open(STATUS_FILE, "r", encoding="utf-8") as f:
+            status_data = json.load(f)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Could not read status file.")
+
+    if status_data.get("status") != "done":
+        raise HTTPException(status_code=404, detail="No completed results available.")
+
     if not latest_path.exists():
-        return {"error": "No results found. Run analysis first."}
+        raise HTTPException(status_code=404, detail="No results found.")
 
-    # Get all research reports in the folder
     reports = list(PREDICTIONS_DIR.glob("full_research_report_*.json"))
+    report = {}
 
-    if not reports:
-        # Fallback: Just return what's in latest_results if no report exists
-        with open(latest_path) as f:
-            latest = json.load(f)
-        return {
-            "summary": latest["summary"],
-            "sentences": latest["sentences"],
-            "research": {},
-        }
+    if reports:
+        report_path = max(reports, key=os.path.getmtime)
+        with open(report_path, "r", encoding="utf-8") as f:
+            report = json.load(f)
 
-    report_path = max(reports, key=os.path.getmtime)
+    with open(latest_path, "r", encoding="utf-8") as f:
+        latest = json.load(f)
 
-    with open(latest_path) as f1, open(report_path) as f2:
-        latest = json.load(f1)
-        report = json.load(f2)
+    csv_files = list(PREDICTIONS_DIR.glob("*_ORIGINAL.csv"))
+    latest_csv = max(csv_files, key=os.path.getmtime).name if csv_files else None
 
     return {
-        "summary": latest["summary"],
-        "sentences": latest["sentences"],
+        "summary": latest.get("summary", {}),
+        "sentences": latest.get("sentences", []),
         "execution_time": latest.get("execution_time", 0),
+        "csv_filename": latest_csv,
         "research": report,
     }
+
+
+@app.get("/download-csv/{filename}")
+def download_csv(filename: str):
+    file_path = PREDICTIONS_DIR / filename
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="CSV file not found")
+
+    return FileResponse(
+        path=file_path,
+        media_type="text/csv",
+        filename=file_path.name,
+    )
 
 
 @app.get("/plot/")

@@ -371,6 +371,7 @@ def main():
         ),
         "avg_local_shift": float(np.mean([r["Raw_Local"] for r in original_rows])),
         "avg_nefi": float(np.mean([r["NEFI"] for r in original_rows])),
+        "csv_filename": original_csv.name,
     }
 
     output_dir = ensure_directory(OUTPUT_DIR)

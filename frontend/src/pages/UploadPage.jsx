@@ -12,31 +12,31 @@ export default function UploadPage(props) {
   const [localTimer, setLocalTimer] = useState(0);
   const navigate = useNavigate();
 
-// Effect to run the timer while 'loading' is true
   useEffect(() => {
-      let interval;
-      if (loading) {
-        interval = setInterval(() => {
-          setLocalTimer((prev) => prev + 1);
-        }, 1000);
-      } else {
-        setLocalTimer(0); // Reset when not loading
-      }
-      return () => clearInterval(interval);
-    }, [loading]);
+    let interval;
+    if (loading) {
+      interval = setInterval(() => {
+        setLocalTimer((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setLocalTimer(0);
+    }
+    return () => clearInterval(interval);
+  }, [loading]);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
 
     const fileName = selectedFile.name.toLowerCase();
-    const isAcceptedType = fileName.endsWith('.txt') || 
-                           fileName.endsWith('.sent') || 
-                           fileName.endsWith('.okpuncs');
+    const isAcceptedType = fileName.endsWith(".okpuncs");
 
     if (!isAcceptedType) {
-      setFileError("⚠️ Invalid file type. Please select .txt or dataset files (.sent, .okpuncs).");
+      setFileError(
+        "⚠️ Invalid file type. Please select a dataset files (.okpuncs).",
+      );
       setFile(null);
+      setSentenceCount(0);
       return;
     }
 
@@ -48,16 +48,19 @@ export default function UploadPage(props) {
       const text = event.target.result;
       const count = text
         .split(/\r?\n/)
-        .map(line => line.trim())
-        .filter(line => line.length > 0)
-        .length;
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0).length;
 
       setSentenceCount(count);
 
       if (count < 50) {
-        setFileError(`⚠️ Narrative too short: ${count} sentences. Minimum 50 required.`);
+        setFileError(
+          `⚠️ Narrative too short: ${count} sentences. Minimum 50 required.`,
+        );
       } else if (count > 200) {
-        setFileError(`⚠️ Narrative too long: ${count} sentences. Maximum 200 allowed.`);
+        setFileError(
+          `⚠️ Narrative too long: ${count} sentences. Maximum 200 allowed.`,
+        );
       } else {
         setFileError("");
       }
@@ -67,6 +70,7 @@ export default function UploadPage(props) {
 
   const handleUpload = async () => {
     if (!file || fileError) return;
+
     const formData = new FormData();
     formData.append("file", file);
 
@@ -81,13 +85,13 @@ export default function UploadPage(props) {
 
         if (statusRes.data.status === "done") {
           clearInterval(interval);
-          setStatus("✅ Analysis complete! Redirecting...");
+          setStatus(
+            `✅ ${statusRes.data.message || "Analysis complete! Redirecting..."}`,
+          );
 
-          //Fetch results to get the OFFICIAL execution time from backend
           try {
             const resultRes = await api.get("/results/");
             if (resultRes.data.execution_time) {
-              // Store it in the App.jsx state
               props.setExecutionTime(resultRes.data.execution_time);
             }
           } catch (err) {
@@ -100,7 +104,7 @@ export default function UploadPage(props) {
           }, 1200);
         } else if (statusRes.data.status === "error") {
           clearInterval(interval);
-          setStatus("❌ Analysis failed.");
+          setStatus(`❌ ${statusRes.data.message || "Analysis failed."}`);
           setLoading(false);
         }
       }, 2000);
@@ -117,68 +121,117 @@ export default function UploadPage(props) {
         <div className="nav-logo-container" onClick={() => navigate("/")}>
           <div className="logo-icon">📈</div>
           <div className="logo-text-wrapper">
-            <span className="logo-main-text">EMOi<span>-TRACK</span></span>
+            <span className="logo-main-text">
+              EMOi<span>-TRACK</span>
+            </span>
           </div>
         </div>
+
         <div className="nav-links">
-          <span className="nav-item" onClick={() => navigate("/")}>Home</span>
-          <span className="nav-item active">Upload</span>     
-          <span className="nav-item" onClick={() => navigate("/results")}>Results</span>
-          
-          {/* MOVED: Researcher Name is now in the Navbar corner */}
-          <div style={{ marginLeft: "20px", padding: "4px 12px", backgroundColor: "#eff6ff", borderRadius: "20px", fontSize: "12px", fontWeight: "700", color: "#3b82f6", display: "flex", alignItems: "center" }}>
-            <span style={{ marginRight: "6px" }}>👤</span> {props.researcher || "Guest"}
+          <span className="nav-item" onClick={() => navigate("/")}>
+            Home
+          </span>
+          <span className="nav-item active">Upload</span>
+          <span className="nav-item" onClick={() => navigate("/results")}>
+            Results
+          </span>
+
+          <div className="researcher-badge">
+            <span>👤</span> {props.researcher || "Guest"}
           </div>
         </div>
       </nav>
 
       <main className="main-content">
-        <div className="upload-card" style={{ textAlign: "center" }}>
-          {/* CENTERED: Version Badge is now centered in the card */}
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
-            <div style={{ padding: "6px 14px", backgroundColor: "#f1f5f9", borderRadius: "6px", fontSize: "11px", fontWeight: "800", color: "#475569", letterSpacing: "0.5px" }}>
+        <div className="upload-card">
+          <div className="version-badge-wrapper">
+            <div className="version-badge">
               Negative Emotion RoBERTa / NEFI v1.0
             </div>
           </div>
 
           <h1>Narrative Analysis</h1>
-          <p style={{ color: "#64748b", fontSize: "15px", marginBottom: "30px" }}>
-            Welcome, <strong>{props.researcher}</strong>. Select a narrative to identify emotional shifts.
+
+          <p className="upload-subtitle">
+            Welcome, <strong>{props.researcher}</strong>. Select a narrative to
+            identify emotional shifts.
           </p>
 
-          <div 
+          <div
             className={`dropzone ${file ? "active-zone" : ""}`}
             onClick={() => document.getElementById("fileInput").click()}
-            style={{ border: fileError ? "2px dashed #ef4444" : "2px dashed #e2e8f0", margin: "0 auto 20px" }}
           >
-            <p style={{ fontWeight: "700", color: file ? "#0f172a" : "#94a3b8" }}>
-              {file ? file.name : "Select .txt or dataset file"}
+            <p className="dropzone-text">
+              {file ? file.name : "Select a dataset file"}
             </p>
-            <input 
-              id="fileInput" 
-              type="file" 
-              accept=".txt,.sent,.okpuncs" 
-              hidden 
-              onChange={handleFileChange} 
+
+            <input
+              id="fileInput"
+              type="file"
+              accept=".okpuncs"
+              hidden
+              onChange={handleFileChange}
             />
           </div>
 
-          {fileError && (
-            <p style={{ color: "#ef4444", fontSize: "13px", fontWeight: "600", marginBottom: "15px" }}>
-              {fileError}
+          {file && !fileError && (
+            <p className="file-info">
+              Narrative length detected: {sentenceCount} sentences
             </p>
           )}
 
-          <button className="primary-btn" onClick={handleUpload} disabled={!file || loading || !!fileError} style={{ width: "100%", maxWidth: "300px" }}>
+          {fileError && <p className="file-error">{fileError}</p>}
+
+          <button
+            className="primary-btn"
+            onClick={handleUpload}
+            disabled={!file || loading || !!fileError}
+          >
             {loading ? `Analyzing...(${localTimer}s)` : "Analyze File"}
           </button>
-          
-          {status && <p style={{ fontSize: "13px", fontWeight: "600", marginTop: "15px" }}>{status}</p>}
+
+          {status && <p className="upload-status">{status}</p>}
+
+          {!loading && (
+            <div className="method-card">
+              <h3>Research Method Overview</h3>
+
+              <div className="method-section">
+                <p className="method-section-title">Backbone Model</p>
+                <p className="method-section-text">
+                  RoBERTa selected based on Macro-F1 performance and training
+                  stability.
+                </p>
+              </div>
+
+              <div className="method-section">
+                <p className="method-section-title">Selective Prediction</p>
+                <ul>
+                  <li>Temperature (T): 2.5</li>
+                  <li>Threshold (τ): 0.76</li>
+                  <li>Low-confidence predictions → UNKNOWN</li>
+                </ul>
+              </div>
+
+              <div className="method-section">
+                <p className="method-section-title">
+                  Narrative Analysis Outputs
+                </p>
+                <ul>
+                  <li>Sentence-level emotion classification</li>
+                  <li>Emotional trajectory modelling</li>
+                  <li>NEFI instability scoring</li>
+                  <li>Rupture point detection</li>
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
-      <footer style={{ padding: "40px", textAlign: "center", fontSize: "11px", color: "#94a3b8", fontWeight: "700", borderTop: "1px solid #e2e8f0" }}>
-        Project Emoi-Track | {props.researcher || "Senuvi Jayasinghe"} | Computer Science
+      <footer className="footer">
+        Project Emoi-Track | {"Senuvi Jayasinghe"} | Computer Science
+        Undergraduate
       </footer>
     </div>
   );

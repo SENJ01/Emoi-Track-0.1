@@ -41,35 +41,18 @@ def evaluate_narrative(input_file_path, emmood_dir, threshold):
     print(f"Target Story Name: {story_name}")
     print(f"Searching for BEFORE: {before_csv}")
     print(f"Searching for AFTER: {after_csv}")
+    print(f"Searching for GROUND TRUTH: {emmood_path}")
     print(f"--- DEBUG END ---\n")
 
     # FILE CHECKING
-    if not os.path.exists(before_csv):
-        print(f"❌ Missing BEFORE file: {before_csv}")
-        # DEBUG POINT 2: List actual folder contents to see the mismatch
-        print(f"\nDEBUG: Investigating folder: {base_pred_dir}")
-        if os.path.exists(base_pred_dir):
-            files_in_dir = os.listdir(base_pred_dir)
-            print(f"Found {len(files_in_dir)} files in directory.")
-            print("First 10 files in folder:")
-            for f in files_in_dir[:10]:
-                print(f"  - {f}")
+    if not before_csv.exists():
+        raise FileNotFoundError(f"Missing BEFORE file: {before_csv}")
 
-            # Specifically look for files containing the story name
-            matches = [f for f in files_in_dir if story_name in f]
-            print(f"\nFiles matching '{story_name}': {matches}")
-        else:
-            print(f"🚨 ERROR: The directory {base_pred_dir} does not even exist!")
+    if not after_csv.exists():
+        raise FileNotFoundError(f"Missing AFTER file: {after_csv}")
 
-        print(f"--- DEBUG END ---\n")
-        return
-        return
-    if not os.path.exists(after_csv):
-        print(f"❌ Missing AFTER file: {after_csv}")
-        return
-    if not os.path.exists(emmood_path):
-        print(f"❌ Missing ground truth: {emmood_path}")
-        return
+    if not emmood_path.exists():
+        raise FileNotFoundError(f"Missing ground truth file: {emmood_path}")
 
     before_df = pd.read_csv(before_csv)
     after_df = pd.read_csv(after_csv)
@@ -78,7 +61,6 @@ def evaluate_narrative(input_file_path, emmood_dir, threshold):
     score_cols = [col for col in before_df.columns if col.startswith("Score_")]
     probs_before = before_df[score_cols].values
     prob_changes = compute_prob_change(probs_before)
-
     PROB_SHIFT_THRESHOLD = 0.05
     prob_shift = [1 if pc > PROB_SHIFT_THRESHOLD else 0 for pc in prob_changes]
 
@@ -256,7 +238,7 @@ def evaluate_narrative(input_file_path, emmood_dir, threshold):
     nefi_report, f1_nefi, cm_nefi = evaluate_shift(
         "NEFI_RUPTURE", gt_shifts, shift_nefi
     )
-    prob_report, f1_prob, _ = evaluate_shift("PROBABILITY", gt_shifts, prob_shift)
+    prob_report, f1_prob, cm_prob = evaluate_shift("PROBABILITY", gt_shifts, prob_shift)
 
     nefi_vals = before_df["NEFI"].values[:min_len]
     top5_idx = np.argsort(-nefi_vals)[:5]
@@ -319,7 +301,13 @@ def evaluate_narrative(input_file_path, emmood_dir, threshold):
                 "confusion_matrix": cm_top5.tolist(),
             },
         },
-        "phase3": {"probability_shift": {"report": prob_report, "f1": f1_prob}},
+        "phase3": {
+            "probability_shift": {
+                "report": prob_report,
+                "f1": f1_prob,
+                "confusion_matrix": cm_prob.tolist(),
+            }
+        },
     }
 
     report_path = base_pred_dir / f"full_research_report_{story_name}.json"
@@ -337,7 +325,10 @@ if __name__ == "__main__":
     parser.add_argument("--threshold", type=float, default=0.5)
     args = parser.parse_args()
 
-    # DEBUG POINT 3: Check argparse results
     print(f"DEBUG: Script started with threshold: {args.threshold}")
 
-    evaluate_narrative(args.input_file, args.emmood_dir, args.threshold)
+    try:
+        evaluate_narrative(args.input_file, args.emmood_dir, args.threshold)
+    except Exception as e:
+        print(f"❌ Validation failed: {e}")
+        raise
